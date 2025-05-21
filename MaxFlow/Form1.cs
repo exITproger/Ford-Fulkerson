@@ -140,16 +140,28 @@ namespace MaxFlow
                 maxFlow = 0;
             }
 
-            // Выполняем алгоритм до завершения
+            // Выполнение алгоритма полностью
+            ExecuteMaxFlowAlgorithm();
+
+            lblStatus.Text = $"Максимальный поток: {maxFlow}";
+            DrawGraph(graph, flowMatrix);
+            btnNextStep.Enabled = false;
+            btnResultNow.Enabled = false;
+        }
+        private void ExecuteMaxFlowAlgorithm()
+        {
             while (BFS(residualGraph, source, sink, parent))
             {
                 int pathFlow = int.MaxValue;
+
+                // Находим минимальную пропускную способность на найденном пути
                 for (int v = sink; v != source; v = parent[v])
                 {
                     int u = parent[v];
                     pathFlow = Math.Min(pathFlow, residualGraph[u, v]);
                 }
 
+                // Обновляем остаточный граф и матрицу потока
                 for (int v = sink; v != source; v = parent[v])
                 {
                     int u = parent[v];
@@ -164,13 +176,7 @@ namespace MaxFlow
 
                 maxFlow += pathFlow;
             }
-
-            lblStatus.Text = $"Максимальный поток: {maxFlow}";
-            DrawGraph(graph, flowMatrix);
-            btnNextStep.Enabled = false;
-            btnResultNow.Enabled = false;
         }
-
         private bool BFS(int[,] residual, int s, int t, int[] parent)
         {
             bool[] visited = new bool[residual.GetLength(0)];
