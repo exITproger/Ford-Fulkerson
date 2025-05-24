@@ -205,7 +205,7 @@ namespace MaxFlow
                 int n = baseGraph.GetLength(0);
                 PointF[] points = new PointF[n];
                 float angleStep = 360f / n;
-                float radius = Math.Min(graphImage.Width, graphImage.Height) / 2 - 70; // Увеличили отступ
+                float radius = Math.Min(graphImage.Width, graphImage.Height) / 2 - 50;
                 PointF center = new PointF(graphImage.Width / 2f, graphImage.Height / 2f);
 
                 // Настройки для центрирования текста
@@ -228,18 +228,21 @@ namespace MaxFlow
 
                         // Рисуем текст с центрированием
                         RectangleF textRect = new RectangleF(x - 15, y - 15, 30, 30);
-                        g.DrawString((i + 1).ToString(), nodeFont, Brushes.Black, textRect, format);
+                        g.DrawString(
+                            (i + 1).ToString(),
+                            nodeFont,
+                            Brushes.Black,
+                            textRect,
+                            format
+                        );
                     }
                 }
 
-                // Отрисовка рёбер с интеллектуальным размещением подписей
+                // Отрисовка рёбер
                 using (Pen arrowPen = new Pen(Color.DarkSlateGray, 2))
-                using (Font edgeFont = new Font("Segoe UI", 8)) // Уменьшили размер шрифта
+                using (Font edgeFont = new Font("Segoe UI", 9))
                 {
                     arrowPen.CustomEndCap = new System.Drawing.Drawing2D.AdjustableArrowCap(4, 6);
-
-                    // Собираем все метки для проверки пересечений
-                    List<RectangleF> labelBounds = new List<RectangleF>();
 
                     for (int i = 0; i < n; i++)
                     {
@@ -256,7 +259,6 @@ namespace MaxFlow
                                 PointF start = new PointF(p1.X + dir.X * 15, p1.Y + dir.Y * 15);
                                 PointF end = new PointF(p2.X - dir.X * 15, p2.Y - dir.Y * 15);
 
-                                // Устанавливаем цвет ребра
                                 arrowPen.Color = Color.DarkSlateGray;
                                 if (currentPath != null)
                                 {
@@ -272,21 +274,16 @@ namespace MaxFlow
 
                                 // Рисуем ребро
                                 g.DrawLine(arrowPen, start, end);
-
-                                // Подготовка метки ребра
+                                // Рисуем метку ребра
                                 string label = flows != null
                                     ? $"{flows[i, j]}/{baseGraph[i, j]}"
                                     : baseGraph[i, j].ToString();
 
-                                // Вычисляем позицию метки с учетом направления
-                                PointF mid = CalculateLabelPosition(start, end, dir, labelBounds, edgeFont, label);
-
-                                // Рисуем метку ребра
+                                PointF mid = new PointF(
+                                    (start.X + end.X) / 2 + 4,
+                                    (start.Y + end.Y) / 2 + 4
+                                );
                                 g.DrawString(label, edgeFont, Brushes.DarkRed, mid);
-
-                                // Сохраняем границы метки для проверки пересечений
-                                SizeF labelSize = g.MeasureString(label, edgeFont);
-                                labelBounds.Add(new RectangleF(mid, labelSize));
                             }
                         }
                     }
@@ -295,54 +292,6 @@ namespace MaxFlow
 
             graphImage.Image?.Dispose();
             graphImage.Image = bmp;
-        }
-
-        private PointF CalculateLabelPosition(PointF start, PointF end, PointF dir, List<RectangleF> existingLabels, Font font, string text)
-        {
-            PointF mid = new PointF((start.X + end.X) / 2, (start.Y + end.Y) / 2);
-            float offset = 15f; // Базовое смещение
-
-            // Пробуем 4 варианта размещения вокруг середины ребра
-            PointF[] possiblePositions = new PointF[]
-            {
-                new PointF(mid.X + dir.Y * offset, mid.Y - dir.X * offset), // Перпендикулярно в одну сторону
-                new PointF(mid.X - dir.Y * offset, mid.Y + dir.X * offset), // Перпендикулярно в другую сторону
-                new PointF(mid.X + dir.X * offset, mid.Y + dir.Y * offset), // По направлению ребра
-                new PointF(mid.X - dir.X * offset, mid.Y - dir.Y * offset)  // Против направления ребра
-            };
-
-            using (var bmp = new Bitmap(1, 1))
-            using (var tempG = Graphics.FromImage(bmp))
-            {
-                SizeF textSize = tempG.MeasureString(text, font);
-
-                foreach (var pos in possiblePositions)
-                {
-                    RectangleF newLabelRect = new RectangleF(
-                        pos.X - textSize.Width / 2,
-                        pos.Y - textSize.Height / 2,
-                        textSize.Width,
-                        textSize.Height);
-
-                    bool intersects = false;
-                    foreach (var existingRect in existingLabels)
-                    {
-                        if (newLabelRect.IntersectsWith(existingRect))
-                        {
-                            intersects = true;
-                            break;
-                        }
-                    }
-
-                    if (!intersects)
-                    {
-                        return pos;
-                    }
-                }
-            }
-
-            // Если все позиции заняты, возвращаем стандартную с небольшим смещением
-            return new PointF(mid.X + 4, mid.Y + 4);
         }
 
         private int[,] ReadGraphFromFile(string path)
