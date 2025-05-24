@@ -29,6 +29,7 @@ namespace MaxFlow
                 if (graph != null)
                     DrawGraph(graph, flowMatrix);
             };
+
         }
 
         private void btnLoadGraph_Click(object sender, EventArgs e)
@@ -77,6 +78,7 @@ namespace MaxFlow
             btnNextStep.Enabled = true;
             btnResultNow.Enabled = true;
             lblStatus.Text = "Нажимайте 'Следующий шаг' или Enter для продолжения.";
+            btnNextStep.Focus();
         }
 
         private void btnNextStep_Click(object sender, EventArgs e)
@@ -216,59 +218,87 @@ namespace MaxFlow
                 float radius = Math.Min(pictureBox1.Width, pictureBox1.Height) / 2 - 50;
                 PointF center = new PointF(pictureBox1.Width / 2f, pictureBox1.Height / 2f);
 
-                for (int i = 0; i < n; i++)
+                // Настройки для центрирования текста
+                using (StringFormat format = new StringFormat())
+                using (Font nodeFont = new Font("Segoe UI", 10, FontStyle.Bold))
                 {
-                    float angle = i * angleStep * (float)Math.PI / 180f;
-                    float x = center.X + radius * (float)Math.Cos(angle);
-                    float y = center.Y + radius * (float)Math.Sin(angle);
-                    points[i] = new PointF(x, y);
+                    format.Alignment = StringAlignment.Center;
+                    format.LineAlignment = StringAlignment.Center;
 
-                    g.FillEllipse(Brushes.LightBlue, x - 15, y - 15, 30, 30);
-                    g.DrawEllipse(Pens.SteelBlue, x - 15, y - 15, 30, 30);
-                    g.DrawString((i + 1).ToString(), new Font("Segoe UI", 10, FontStyle.Bold), Brushes.Black, x - 10, y - 10);
+                    for (int i = 0; i < n; i++)
+                    {
+                        float angle = i * angleStep * (float)Math.PI / 180f;
+                        float x = center.X + radius * (float)Math.Cos(angle);
+                        float y = center.Y + radius * (float)Math.Sin(angle);
+                        points[i] = new PointF(x, y);
+
+                        // Рисуем узел
+                        g.FillEllipse(Brushes.LightBlue, x - 15, y - 15, 30, 30);
+                        g.DrawEllipse(Pens.SteelBlue, x - 15, y - 15, 30, 30);
+
+                        // Рисуем текст с центрированием
+                        RectangleF textRect = new RectangleF(x - 15, y - 15, 30, 30);
+                        g.DrawString(
+                            (i + 1).ToString(),
+                            nodeFont,
+                            Brushes.Black,
+                            textRect,
+                            format
+                        );
+                    }
                 }
 
-                Pen arrowPen = new Pen(Color.DarkSlateGray, 2);
-                arrowPen.CustomEndCap = new System.Drawing.Drawing2D.AdjustableArrowCap(4, 6);
+                // Отрисовка рёбер
+                using (Pen arrowPen = new Pen(Color.DarkSlateGray, 2))
+                using (Font edgeFont = new Font("Segoe UI", 9))
+                {
+                    arrowPen.CustomEndCap = new System.Drawing.Drawing2D.AdjustableArrowCap(4, 6);
 
-                Font font = new Font("Segoe UI", 9);
-
-                for (int i = 0; i < n; i++)
-                    for (int j = 0; j < n; j++)
-                        if (baseGraph[i, j] > 0)
+                    for (int i = 0; i < n; i++)
+                    {
+                        for (int j = 0; j < n; j++)
                         {
-                            PointF p1 = points[i], p2 = points[j];
-                            PointF dir = new PointF(p2.X - p1.X, p2.Y - p1.Y);
-                            float len = (float)Math.Sqrt(dir.X * dir.X + dir.Y * dir.Y);
-                            dir.X /= len; dir.Y /= len;
-
-                            PointF start = new PointF(p1.X + dir.X * 15, p1.Y + dir.Y * 15);
-                            PointF end = new PointF(p2.X - dir.X * 15, p2.Y - dir.Y * 15);
-                            if (currentPath != null)
+                            if (baseGraph[i, j] > 0)
                             {
-                                for (int k = 0; k < currentPath.Count - 1; k++)
+                                PointF p1 = points[i], p2 = points[j];
+                                PointF dir = new PointF(p2.X - p1.X, p2.Y - p1.Y);
+                                float len = (float)Math.Sqrt(dir.X * dir.X + dir.Y * dir.Y);
+                                dir.X /= len;
+                                dir.Y /= len;
+
+                                PointF start = new PointF(p1.X + dir.X * 15, p1.Y + dir.Y * 15);
+                                PointF end = new PointF(p2.X - dir.X * 15, p2.Y - dir.Y * 15);
+
+                                arrowPen.Color = Color.DarkSlateGray;
+                                if (currentPath != null)
                                 {
-                                    if (currentPath[k] == i && currentPath[k + 1] == j)
+                                    for (int k = 0; k < currentPath.Count - 1; k++)
                                     {
-                                        arrowPen.Color = Color.OrangeRed;
-                                        break;
-                                    }
-                                    else
-                                    {
-                                        arrowPen.Color = Color.DarkSlateGray;
+                                        if (currentPath[k] == i && currentPath[k + 1] == j)
+                                        {
+                                            arrowPen.Color = Color.OrangeRed;
+                                            break;
+                                        }
                                     }
                                 }
-                            }
-                            else
-                            {
-                                arrowPen.Color = Color.DarkSlateGray;
-                            }
-                            g.DrawLine(arrowPen, start, end);
 
-                            string label = flows != null ? $"{flows[i, j]}/{baseGraph[i, j]}" : baseGraph[i, j].ToString();
-                            PointF mid = new PointF((start.X + end.X) / 2, (start.Y + end.Y) / 2);
-                            g.DrawString(label, font, Brushes.DarkRed, mid.X + 4, mid.Y + 4);
+                                // Рисуем ребро
+                                g.DrawLine(arrowPen, start, end);
+
+                                // Рисуем метку ребра
+                                string label = flows != null
+                                    ? $"{flows[i, j]}/{baseGraph[i, j]}"
+                                    : baseGraph[i, j].ToString();
+
+                                PointF mid = new PointF(
+                                    (start.X + end.X) / 2 + 4,
+                                    (start.Y + end.Y) / 2 + 4
+                                );
+                                g.DrawString(label, edgeFont, Brushes.DarkRed, mid);
+                            }
                         }
+                    }
+                }
             }
 
             pictureBox1.Image?.Dispose();
@@ -299,5 +329,6 @@ namespace MaxFlow
 
             return matrix;
         }
+
     }
 }
