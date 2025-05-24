@@ -206,7 +206,7 @@ namespace MaxFlow
 
         private void DrawGraph(int[,] baseGraph, int[,] flows)
         {
-            Bitmap bmp = new Bitmap(pictureBox1.Width, pictureBox1.Height);
+            Bitmap bmp = new Bitmap(graphImage.Width, graphImage.Height);
             using (Graphics g = Graphics.FromImage(bmp))
             {
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
@@ -215,8 +215,8 @@ namespace MaxFlow
                 int n = baseGraph.GetLength(0);
                 PointF[] points = new PointF[n];
                 float angleStep = 360f / n;
-                float radius = Math.Min(pictureBox1.Width, pictureBox1.Height) / 2 - 50;
-                PointF center = new PointF(pictureBox1.Width / 2f, pictureBox1.Height / 2f);
+                float radius = Math.Min(graphImage.Width, graphImage.Height) / 2 - 50;
+                PointF center = new PointF(graphImage.Width / 2f, graphImage.Height / 2f);
 
                 // Настройки для центрирования текста
                 using (StringFormat format = new StringFormat())
@@ -301,8 +301,8 @@ namespace MaxFlow
                 }
             }
 
-            pictureBox1.Image?.Dispose();
-            pictureBox1.Image = bmp;
+            graphImage.Image?.Dispose();
+            graphImage.Image = bmp;
         }
 
         private int[,] ReadGraphFromFile(string path)
