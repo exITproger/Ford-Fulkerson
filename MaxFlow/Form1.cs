@@ -7,7 +7,7 @@ using System.Windows.Forms;
 
 namespace MaxFlow
 {
-    public partial class Form1 : Form
+    public partial class MaxFlowForm : Form
     {
         private List<int> currentPath = null;
         private int[,] graph;
@@ -20,7 +20,7 @@ namespace MaxFlow
         private Queue<List<int>> paths = new Queue<List<int>>();
         private Queue<int> pathFlows = new Queue<int>();
 
-        public Form1()
+        public MaxFlowForm()
         {
             InitializeComponent();
             btnNextStep.Enabled = false;

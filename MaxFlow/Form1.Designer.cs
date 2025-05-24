@@ -1,6 +1,6 @@
 ﻿namespace MaxFlow
 {
-    partial class Form1
+    partial class MaxFlowForm
     {
         private System.ComponentModel.IContainer components = null;
 
