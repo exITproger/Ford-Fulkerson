@@ -80,49 +80,44 @@ namespace MaxFlow
             lblStatus.Text = "Нажимайте 'Следующий шаг' или Enter для продолжения.";
             btnNextStep.Focus();
         }
+        private bool FindAndPreparePath()
+        {
+            if (!BFS(residualGraph, source, sink, parent))
+            {
+                lblStatus.Text = $"Максимальный поток: {maxFlow}";
+                currentPath = null; // Сбрасываем текущий путь
+                DrawGraph(graph, flowMatrix); // Принудительно перерисовываем граф к начальному виду
+                btnNextStep.Enabled = false;
+                btnResultNow.Enabled = false;
+                return false;
+            }
 
+            currentPath = new List<int>();
+            int pathFlow = int.MaxValue;
+
+            // Восстанавливаем путь от стока к истоку
+            for (int v = sink; v != source; v = parent[v])
+            {
+                int u = parent[v];
+                currentPath.Insert(0, v);
+                pathFlow = Math.Min(pathFlow, residualGraph[u, v]);
+            }
+
+            currentPath.Insert(0, source);
+            pathFlows.Enqueue(pathFlow);
+            return true;
+        }
         private void btnNextStep_Click(object sender, EventArgs e)
         {
-            if (currentPath == null)
+            if (currentPath == null && !FindAndPreparePath())
             {
-                if (!BFS(residualGraph, source, sink, parent))
-                {
-                    lblStatus.Text = $"Максимальный поток: {maxFlow}";
-                    DrawGraph(graph, flowMatrix);
-                    btnNextStep.Enabled = false;
-                    btnResultNow.Enabled = false;
-                    return;
-                }
-
-                currentPath = new List<int>();
-                int pathFlow = int.MaxValue;
-                for (int v = sink; v != source; v = parent[v])
-                {
-                    int u = parent[v];
-                    currentPath.Insert(0, v);
-                    pathFlow = Math.Min(pathFlow, residualGraph[u, v]);
-                }
-                currentPath.Insert(0, source);
-                pathFlows.Enqueue(pathFlow);
+                return;
             }
 
             int flow = pathFlows.Dequeue();
-            for (int i = 0; i < currentPath.Count - 1; i++)
-            {
-                int u = currentPath[i], v = currentPath[i + 1];
-                residualGraph[u, v] -= flow;
-                residualGraph[v, u] += flow;
-
-                if (graph[u, v] > 0)
-                    flowMatrix[u, v] += flow;
-                else
-                    flowMatrix[v, u] -= flow;
-            }
-
-            maxFlow += flow;
+            ProcessFlowPath(flow);
             lblStatus.Text = $"Шаг {step++}. Путь: {string.Join("→", currentPath.Select(n => n + 1))}, Поток: {flow}, Общий: {maxFlow}";
             currentPath = null;
-            DrawGraph(graph, flowMatrix);
         }
 
         private void btnResultNow_Click(object sender, EventArgs e)
@@ -152,31 +147,10 @@ namespace MaxFlow
         }
         private void ExecuteMaxFlowAlgorithm()
         {
-            while (BFS(residualGraph, source, sink, parent))
+            while (FindAndPreparePath())
             {
-                int pathFlow = int.MaxValue;
-
-                // Находим минимальную пропускную способность на найденном пути
-                for (int v = sink; v != source; v = parent[v])
-                {
-                    int u = parent[v];
-                    pathFlow = Math.Min(pathFlow, residualGraph[u, v]);
-                }
-
-                // Обновляем остаточный граф и матрицу потока
-                for (int v = sink; v != source; v = parent[v])
-                {
-                    int u = parent[v];
-                    residualGraph[u, v] -= pathFlow;
-                    residualGraph[v, u] += pathFlow;
-
-                    if (graph[u, v] > 0)
-                        flowMatrix[u, v] += pathFlow;
-                    else
-                        flowMatrix[v, u] -= pathFlow;
-                }
-
-                maxFlow += pathFlow;
+                int flow = pathFlows.Dequeue();
+                ProcessFlowPath(flow);
             }
         }
         private bool BFS(int[,] residual, int s, int t, int[] parent)
@@ -203,7 +177,23 @@ namespace MaxFlow
 
             return visited[t];
         }
+        private void ProcessFlowPath(int flow)
+        {
+            for (int i = 0; i < currentPath.Count - 1; i++)
+            {
+                int u = currentPath[i], v = currentPath[i + 1];
+                residualGraph[u, v] -= flow;
+                residualGraph[v, u] += flow;
 
+                if (graph[u, v] > 0)
+                    flowMatrix[u, v] += flow;
+                else
+                    flowMatrix[v, u] -= flow;
+            }
+
+            maxFlow += flow;
+            DrawGraph(graph, flowMatrix);
+        }
         private void DrawGraph(int[,] baseGraph, int[,] flows)
         {
             Bitmap bmp = new Bitmap(graphImage.Width, graphImage.Height);
@@ -284,7 +274,6 @@ namespace MaxFlow
 
                                 // Рисуем ребро
                                 g.DrawLine(arrowPen, start, end);
-
                                 // Рисуем метку ребра
                                 string label = flows != null
                                     ? $"{flows[i, j]}/{baseGraph[i, j]}"
@@ -307,22 +296,34 @@ namespace MaxFlow
 
         private int[,] ReadGraphFromFile(string path)
         {
-            var lines = File.ReadAllLines(path);
+            var rawLines = File.ReadAllLines(path);
+
+            // Убираем пустые строки и лишние пробелы
+            var lines = rawLines
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => line.Trim())
+                .ToArray();
+
             int n = lines.Length;
             int[,] matrix = new int[n, n];
 
             for (int i = 0; i < n; i++)
             {
-                var values = lines[i].Split(' ');
+                // Разделяем по пробелам и табуляциям
+                var values = lines[i]
+                    .Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
                 if (values.Length != n)
-                    throw new InvalidDataException("Некорректный формат файла.");
+                    throw new InvalidDataException($"Некорректный формат файла: строка {i + 1} должна содержать {n} чисел.");
 
                 for (int j = 0; j < n; j++)
                 {
                     if (!int.TryParse(values[j], out int val))
-                        throw new InvalidDataException("Файл содержит нечисловое значение.");
+                        throw new InvalidDataException($"Файл содержит нечисловое значение в строке {i + 1}, столбце {j + 1}.");
+
                     if (i == j && val != 0)
-                        throw new InvalidDataException("Диагональные элементы должны быть 0.");
+                        throw new InvalidDataException("Диагональные элементы должны быть равны 0.");
+
                     matrix[i, j] = val;
                 }
             }
