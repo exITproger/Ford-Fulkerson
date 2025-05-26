@@ -296,22 +296,34 @@ namespace MaxFlow
 
         private int[,] ReadGraphFromFile(string path)
         {
-            var lines = File.ReadAllLines(path);
+            var rawLines = File.ReadAllLines(path);
+
+            // Убираем пустые строки и лишние пробелы
+            var lines = rawLines
+                .Where(line => !string.IsNullOrWhiteSpace(line))
+                .Select(line => line.Trim())
+                .ToArray();
+
             int n = lines.Length;
             int[,] matrix = new int[n, n];
 
             for (int i = 0; i < n; i++)
             {
-                var values = lines[i].Split(' ');
+                // Разделяем по пробелам и табуляциям
+                var values = lines[i]
+                    .Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
                 if (values.Length != n)
-                    throw new InvalidDataException("Некорректный формат файла.");
+                    throw new InvalidDataException($"Некорректный формат файла: строка {i + 1} должна содержать {n} чисел.");
 
                 for (int j = 0; j < n; j++)
                 {
                     if (!int.TryParse(values[j], out int val))
-                        throw new InvalidDataException("Файл содержит нечисловое значение.");
+                        throw new InvalidDataException($"Файл содержит нечисловое значение в строке {i + 1}, столбце {j + 1}.");
+
                     if (i == j && val != 0)
-                        throw new InvalidDataException("Диагональные элементы должны быть 0.");
+                        throw new InvalidDataException("Диагональные элементы должны быть равны 0.");
+
                     matrix[i, j] = val;
                 }
             }
